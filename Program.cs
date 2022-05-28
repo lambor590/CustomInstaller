@@ -5,6 +5,7 @@ using System.Text.Json;
 using Json.Schema;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using System.Net.Http;
 
 namespace Instalador_personalizable
 {
@@ -32,7 +33,8 @@ namespace Instalador_personalizable
             checkUpdates(version);
             void checkUpdates(string version)
             {
-
+                var httpClient = new HttpClient();
+                var url = httpClient.GetStringAsync("");
             }
 
             string configFile = Directory.GetCurrentDirectory() + "\\config.json";
