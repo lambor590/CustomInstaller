@@ -38,7 +38,7 @@ namespace Custom_Installer
                 r = Logger.Ask("¿En qué categoría lo quieres poner?");
                 int chosenNum = r[0] - '0';
                 Console.Clear();
-                
+
                 string category = configJson.Keys.ElementAt(chosenNum - 1);
 
                 string name = Logger.Ask("¿Qué nombre le quieres poner al archivo?");
@@ -146,9 +146,9 @@ namespace Custom_Installer
                 Dictionary<string, string>.KeyCollection keys = Utils.GetKeys(category, configJson);
 
                 Utils.ListKeys(Utils.ToDictionary(config));
-                
+
                 r = Logger.Ask("¿Cuáles quieres eliminar?\nEjemplo: 1,2,3");
-                
+
                 IList<int> chosenKeys = r.Split(',').Select(int.Parse).ToList();
                 var keysToRemove = chosenKeys.Select(fileNum => keys.ElementAt(fileNum - 1)).ToList();
 
@@ -169,15 +169,19 @@ namespace Custom_Installer
             await Menu(configFile, downloadsDir);
         }
 
-        public static void Save(string configFile, Dictionary<string, object> json)
+        public static void Save(string configFile, Dictionary<string, object> json, bool verbose = true)
         {
             try
             {
-                Console.Clear();
                 string result = JsonConvert.SerializeObject(json, Formatting.Indented);
                 File.WriteAllText(configFile, result);
-                Logger.Ok("Cambios guardados correctamente.", true);
-                Thread.Sleep(1000);
+
+                if (verbose)
+                {
+                    Console.Clear();
+                    Logger.Ok("Cambios guardados correctamente.", true);
+                    Thread.Sleep(1000);
+                }
             }
             catch
             {

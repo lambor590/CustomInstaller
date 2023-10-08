@@ -49,7 +49,7 @@
                     }}
                 };
 
-                EditorMode.Save(configFile, json);
+                EditorMode.Save(configFile, json, false);
                 Logger.Info("Archivo de configuración creado correctamente.", true);
             }
             else
