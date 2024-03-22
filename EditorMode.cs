@@ -5,21 +5,28 @@ namespace Custom_Installer
 {
     internal class EditorMode
     {
-        public static async Task Menu(string configFile, string downloadsDir)
+        public static async Task Menu(string configFile, string downloadsDir, Dictionary<string, object> configJson)
         {
             Console.Clear();
             Logger.Info("Editor de la configuración.");
             string r = Logger.Ask("¿Qué quieres hacer en la configuración?\nDeja la respuesta vacía para volver al inicio.\n\n1 - Añadir\n2 - Modificar\n3 - Eliminar", true);
             Console.Clear();
-            var configJson = JsonConvert.DeserializeObject<Dictionary<string, object>>(File.ReadAllText(configFile)) ?? new Dictionary<string, object>();
 
-            if (r == "1") { await Add(configFile, configJson, downloadsDir); }
-
-            else if (r == "2") { await Modify(configFile, configJson, downloadsDir); }
-
-            else if (r == "3") { await Delete(configFile, configJson, downloadsDir); }
-
-            else { await Program.Start(configFile, downloadsDir); }
+            switch (r)
+            {
+                case "1":
+                    await Add(configFile, configJson, downloadsDir);
+                    break;
+                case "2":
+                    await Modify(configFile, configJson, downloadsDir);
+                    break;
+                case "3":
+                    await Delete(configFile, configJson, downloadsDir);
+                    break;
+                default:
+                    await Program.Start(configFile, downloadsDir);
+                    break;
+            }
         }
 
         private static async Task Add(string configFile, Dictionary<string, object> configJson, string downloadsDir)
@@ -29,23 +36,24 @@ namespace Custom_Installer
 
             if (r == "1")
             {
-                r = Logger.Ask("¿Qué nombre le quieres poner?");
-                configJson.Add(r, new Dictionary<string, object>());
+                string categoryName = Logger.Ask("¿Qué nombre le quieres poner?");
+                configJson.Add(categoryName, new Dictionary<string, object>());
             }
             else if (r == "2")
             {
                 Utils.ListConfig(configJson);
-                r = Logger.Ask("¿En qué categoría lo quieres poner?");
-                int chosenNum = r[0] - '0';
+                string categoryIndexInput = Logger.Ask("¿En qué categoría lo quieres poner?");
+                int categoryIndex = categoryIndexInput[0] - '0';
                 Console.Clear();
 
-                string category = configJson.Keys.ElementAt(chosenNum - 1);
+                string category = configJson.Keys.ElementAt(categoryIndex - 1);
 
-                string name = Logger.Ask("¿Qué nombre le quieres poner al archivo?");
+                string fileName = Logger.Ask("¿Qué nombre le quieres poner al archivo?");
                 Console.Clear();
-                string link = Logger.Ask("¿Cuál es el enlace directo de descarga?");
+                string fileLink = Logger.Ask("¿Cuál es el enlace directo de descarga?");
                 Console.Clear();
-                ((JObject)configJson[category])[name] = link;
+
+                ((JObject)configJson[category])[fileName] = fileLink;
             }
 
             Save(configFile, configJson);
@@ -58,7 +66,6 @@ namespace Custom_Installer
             string r = Logger.Ask("¿Cuál quieres modificar?");
             int chosenNum = r[0] - '0';
 
-            Console.Clear();
             string category = configJson.Keys.ElementAt(chosenNum - 1);
             Logger.Info("Modificando categoría: " + category);
 
@@ -82,7 +89,6 @@ namespace Custom_Installer
                 Utils.ListKeys(categories);
                 r = Logger.Ask("¿A qué elemento le quieres cambiar el nombre?");
                 chosenNum = r[0] - '0';
-                Console.Clear();
                 string r2 = Logger.Ask("¿Cuál es el nuevo nombre?");
                 string link = values.ElementAt(chosenNum - 1);
                 config.Property(keys.ElementAt(chosenNum - 1))?.Remove();
@@ -93,21 +99,16 @@ namespace Custom_Installer
                 Utils.ListKeys(categories);
                 r = Logger.Ask("¿A qué elemento le quieres cambiar el enlace?");
                 chosenNum = r[0] - '0';
-                Console.Clear();
-                r = Logger.Ask("¿Cuál es el nuevo enlace?");
-                string key = keys.ElementAt(chosenNum - 1);
-                config[key] = r;
+                string r3 = Logger.Ask("¿Cuál es el nuevo enlace?");
+                config[keys.ElementAt(chosenNum - 1)] = r3;
             }
             else if (r == "4")
             {
                 Utils.ListKeys(categories);
                 r = Logger.Ask("¿Cuál quieres modificar?");
                 chosenNum = r[0] - '0';
-                Console.Clear();
                 string r2 = Logger.Ask("¿Cuál es el nuevo nombre?");
-                Console.Clear();
                 string r3 = Logger.Ask("¿Cuál es el nuevo enlace?");
-                Console.Clear();
                 config.Property(keys.ElementAt(chosenNum - 1))?.Remove();
                 config[r2] = r3;
             }
@@ -166,7 +167,8 @@ namespace Custom_Installer
         private static async Task ReturnToMenu(string configFile, string downloadsDir)
         {
             Console.Clear();
-            await Menu(configFile, downloadsDir);
+            Dictionary<string, object> configJson = JsonConvert.DeserializeObject<Dictionary<string, object>>(File.ReadAllText(configFile)) ?? [];
+            await Menu(configFile, downloadsDir, configJson);
         }
 
         public static void Save(string configFile, Dictionary<string, object> json, bool verbose = true)
