@@ -30,12 +30,12 @@ namespace Custom_Installer
             Utils.Write(msg + "\n", fast ? 6 : 18);
         }
 
-        public static void List(string msg, int order, bool fast = false)
+        public static void List(string msg, int index, bool fast = false)
         {
             Console.ForegroundColor = ConsoleColor.Cyan;
             Utils.Write("[", fast ? 6 : 18);
             Console.ForegroundColor = ConsoleColor.DarkCyan;
-            Utils.WriteNum(order, fast ? 6 : 18);
+            Utils.WriteNum(index, fast ? 6 : 18);
             Console.ForegroundColor = ConsoleColor.Cyan;
             Utils.Write("] ", fast ? 6 : 18);
             Console.ForegroundColor = ConsoleColor.DarkCyan;
@@ -57,7 +57,7 @@ namespace Custom_Installer
             return Console.ReadLine() ?? string.Empty;
         }
 
-        public static void Ok(string mensaje, bool fast = false)
+        public static void Ok(string msg, bool fast = false)
         {
             Console.ForegroundColor = ConsoleColor.Green;
             Utils.Write("[", fast ? 6 : 18);
@@ -66,7 +66,7 @@ namespace Custom_Installer
             Console.ForegroundColor = ConsoleColor.Green;
             Utils.Write("] ", fast ? 6 : 18);
             Console.ForegroundColor = ConsoleColor.DarkGreen;
-            Utils.Write(mensaje + "\n", fast ? 6 : 18);
+            Utils.Write(msg + "\n", fast ? 6 : 18);
         }
     }
 
@@ -104,10 +104,9 @@ namespace Custom_Installer
         {
             Console.Title = $"Instalador personalizable v{GetLocalVersion()} | The Ghost";
 
-            var httpClient = new HttpClient();
-            var latestVersionTask = httpClient.GetStringAsync("https://otcr.tk/version.txt");
+            HttpClient httpClient = new();
+            var latestVersion = await httpClient.GetStringAsync("https://otko.pp.ua/CI/version.txt");
             Logger.Info("Comprobando actualizaciones...", true);
-            var latestVersion = await latestVersionTask;
 
             if (latestVersion != GetLocalVersion())
             {
@@ -117,7 +116,6 @@ namespace Custom_Installer
             else
             {
                 Logger.Ok("Estás usando la última versión.", true);
-                Thread.Sleep(500);
                 Console.Clear();
                 Logger.Info("Iniciando comprobaciones...");
             }
@@ -130,12 +128,11 @@ namespace Custom_Installer
 
             using (var client = new HttpClient())
             {
-                byte[] updaterBytes = await client.GetByteArrayAsync("https://otcr.tk/updater.bat");
+                byte[] updaterBytes = await client.GetByteArrayAsync("https://otko.pp.ua/CI/updater.bat");
                 await File.WriteAllBytesAsync(currentDir + "updater.bat", updaterBytes);
 
-                byte[] installerBytes = await client.GetByteArrayAsync("https://otcr.tk/Custom%20Installer.exe");
+                byte[] installerBytes = await client.GetByteArrayAsync("https://otko.pp.ua/CI/Custom%20Installer.exe");
                 await File.WriteAllBytesAsync(temp + "Custom Installer.exe", installerBytes);
-
             }
 
             ProcessStartInfo start = new();
@@ -150,8 +147,8 @@ namespace Custom_Installer
         {
             using (var response = await client.GetAsync(fileLink, HttpCompletionOption.ResponseHeadersRead))
             {
-                var originalName = response.Content.Headers.ContentDisposition?.FileName;
-                var fileStream = File.Create(downloadsDir + "\\" + originalName ?? fileName + ".exe");
+                string? originalName = response.Content.Headers.ContentDisposition?.FileName;
+                var fileStream = File.Create(Path.Combine(downloadsDir, originalName ?? fileName + ".exe"));
                 await response.Content.CopyToAsync(fileStream);
             }
 
@@ -178,7 +175,7 @@ namespace Custom_Installer
 
         public static Dictionary<string, string> ToDictionary(JObject category)
         {
-            return category.ToObject<Dictionary<string, string>>() ?? new Dictionary<string, string>();
+            return category.ToObject<Dictionary<string, string>>() ?? [];
         }
 
         public static Dictionary<string, string>.ValueCollection GetValues(string category, Dictionary<string, object> configJson)
@@ -193,7 +190,7 @@ namespace Custom_Installer
 
         public static Dictionary<string, string> GetCategoryData(string category, Dictionary<string, object> configJson)
         {
-            return ToDictionary((JObject)configJson[category]) ?? new Dictionary<string, string>();
+            return ToDictionary((JObject)configJson[category]) ?? [];
         }
     }
 }
