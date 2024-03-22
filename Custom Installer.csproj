@@ -8,7 +8,7 @@
     <ApplicationIcon>icono.ico</ApplicationIcon>
     <Authors>The Ghost</Authors>
     <Company>The Ghost</Company>
-    <Copyright>Copyright 2023 The Ghost</Copyright>
+    <Copyright>Copyright 2024 The Ghost</Copyright>
     <Version>2.0.1</Version>
   </PropertyGroup>
   <ItemGroup>
