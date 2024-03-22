@@ -1,4 +1,6 @@
-﻿namespace Custom_Installer
+﻿using Newtonsoft.Json;
+
+namespace Custom_Installer
 {
     class Program
     {
@@ -14,21 +16,15 @@
                 Thread.Sleep(2000);
             }
 
-            string configFile = Directory.GetCurrentDirectory() + "\\config.json";
-            string downloadsDir = Directory.GetCurrentDirectory() + "\\Descargas";
-
+            string configFile = Path.Combine(Directory.GetCurrentDirectory(), "config.json");
+            string downloadsDir = Path.Combine(Directory.GetCurrentDirectory(), "Descargas");
 
             if (Directory.Exists(downloadsDir))
             {
-                string[] files = Directory.GetFiles(downloadsDir);
-
-                if (files.Length > 0)
+                Parallel.ForEach(Directory.EnumerateFiles(downloadsDir), file =>
                 {
-                    foreach (string file in files)
-                    {
-                        File.Delete(file);
-                    }
-                }
+                    File.Delete(file);
+                });
             }
 
             if (!File.Exists(configFile))
@@ -41,7 +37,7 @@
                         {"Discord", "https://discord.com/api/downloads/distributions/app/installers/latest?channel=stable&platform=win&arch=x86"},
                         {"OperaGX", "https://net.geo.opera.com/opera_gx/stable/windows"}
                     }},
-                    
+
                     {"Launchers", new Dictionary<string, string>()
                     {
                         {"Steam", "https://cdn.cloudflare.steamstatic.com/client/installer/SteamSetup.exe"},
@@ -75,15 +71,24 @@
 
         public static async Task Start(string configFile, string downloadsDir)
         {
+            string configFileText = File.ReadAllText(configFile);
+            Dictionary<string, object> configJson = JsonConvert.DeserializeObject<Dictionary<string, object>>(configFileText) ?? [];
+
+            if (configJson.Count == 0)
+            {
+                Logger.Error("El formato del archivo de configuración no es válido.\nComprueba que al modificarlo manualmente mantenga el mismo formato.\nPuedes usar jsonlint.com para comprobar el archivo de configuración, o volver a generarlo.", true);
+                Logger.Info("Presiona cualquier tecla para salir.", true);
+                Console.ReadKey();
+                Environment.Exit(0);
+            }
+
             Logger.Info("Inicio");
             var r = Logger.Ask("¿Qué quieres hacer?\n\n1 - Descargar archivos\n2 - Editar configuración");
             Console.Clear();
 
-            if (r == "1") { await DownloadMode.Run(configFile, downloadsDir); }
-
-            else if (r == "2") { await EditorMode.Menu(configFile, downloadsDir); }
-
-            else { await DownloadMode.Run(configFile, downloadsDir); }
+            if (r == "1") { await DownloadMode.Run(configFile, downloadsDir, configJson, configFileText); }
+            else if (r == "2") { await EditorMode.Menu(configFile, downloadsDir, configJson); }
+            else { await DownloadMode.Run(configFile, downloadsDir, configJson, configFileText); }
 
             Console.ReadKey(true);
         }
