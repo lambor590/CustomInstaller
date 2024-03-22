@@ -1,28 +1,14 @@
 ﻿using Newtonsoft.Json.Linq;
 using Newtonsoft.Json;
 using System.Diagnostics;
+using System.ComponentModel;
 
 namespace Custom_Installer
 {
     internal class DownloadMode
     {
-        public static async Task Run(string configFile, string downloadsDir)
+        public static async Task Run(string configFile, string downloadsDir, Dictionary<string, object> json, string configFileText)
         {
-            string configFileText = File.ReadAllText(configFile);
-            Dictionary<string, object>? json = new();
-
-            try
-            {
-                json = JsonConvert.DeserializeObject<Dictionary<string, object>>(configFileText);
-            }
-            catch
-            {
-                Logger.Error("El formato del archivo de configuración no es válido.\nComprueba que al modificarlo manualmente mantenga el mismo formato.\nPuedes usar jsonlint.com para comprobar el archivo de configuración, o volver a generarlo.", true);
-                Logger.Info("Presiona cualquier tecla para salir.", true);
-                Console.ReadKey();
-                Environment.Exit(0);
-            }
-
             JObject categories = JObject.Parse(JsonConvert.SerializeObject(json));
 
             Logger.Info("Lista de categorías:\n");
@@ -36,7 +22,7 @@ namespace Custom_Installer
 
             try
             {
-                if (response.ToString().ToLower() == "todas" || response.Equals("0"))
+                if (response.ToString().Equals("todas", StringComparison.CurrentCultureIgnoreCase) || response.Equals("0"))
                 {
                     downloadAll = true;
                 }
@@ -44,35 +30,29 @@ namespace Custom_Installer
                 Logger.Info("Iniciando descarga...\n");
 
                 IList<int> categoriesToDownload = response.Split(',').Select(int.Parse).ToList();
-                var takeValue = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, string>>>(configFileText) ?? new Dictionary<string, Dictionary<string, string>>();
+                var takeValue = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, string>>>(configFileText) ?? [];
 
-                List<Task> downloadTasks = new();
+                List<Task> downloadTasks = [];
 
                 using (var client = new HttpClient())
                 {
                     var categoriesToProcess = downloadAll ?
                         categories.Properties() :
-                        categoriesToDownload.Select(catNumber => categories.Properties()
-                        .Skip(catNumber - 1).First());
-
-                    foreach (var category in categoriesToProcess)
+                        categoriesToDownload.Select(catNumber => categories.Properties().Skip(catNumber - 1).First());
+                    Parallel.ForEach(categoriesToProcess, category =>
                     {
                         var categoryObject = category.Value as JObject;
-                        foreach (var (fileName, fileLink) in from property in categoryObject?.Properties()
-                                                             let fileName = property.Name
-                                                             let fileLink = new Uri(takeValue[category.Name][property.Name])
-                                                             select (fileName, fileLink))
+                        var categoryDownloadTasks = categoryObject?.Properties().AsParallel().Select(property =>
                         {
-                            var downloadTask = Utils.Download(client, fileName, fileLink, downloadsDir);
-                            if (downloadTask != null)
-                            {
-                                downloadTasks.Add(downloadTask);
-                            }
-                        }
-                    }
+                            var fileName = property.Name;
+                            var fileLink = new Uri(takeValue[category.Name][property.Name]);
+                            return Utils.Download(client, fileName, fileLink, downloadsDir);
+                        }).ToList();
 
-                    await Task.WhenAll(downloadTasks);
+                        Task.WhenAll(categoryDownloadTasks ?? Enumerable.Empty<Task>()).Wait();
+                    });
                 }
+
 
                 Thread.Sleep(1000);
                 Console.Clear();
@@ -81,43 +61,35 @@ namespace Custom_Installer
                 response = Logger.Ask("¿Quieres abrir todos los archivos ejecutables descargados? [s/N]");
                 try
                 {
-                    if (response.ToString().ToLower() == "s")
-                    {
-                        Console.WriteLine("\n");
-                        Logger.Info("Abriendo archivos...");
-                        string[] files = Directory.GetFiles(downloadsDir, "*.exe");
-
-                        try
-                        {
-                            foreach (string file in files)
-                            {
-                                ProcessStartInfo start = new()
-                                {
-                                    FileName = file
-                                };
-                                Process.Start(start);
-                            }
-                            Logger.Info("Presiona cualquier tecla para salir.");
-                            Console.ReadKey();
-                            Environment.Exit(0);
-                        }
-                        catch (Exception error)
-                        {
-                            if (error.ToString().Contains("La operación solicitada requiere elevación."))
-                            {
-                                Console.WriteLine("\n");
-                                Logger.Error("Uno de los archivos requiere permisos de administrador.\nVuelve a abrir el programa como administrador para que pueda abrirlo, o ábrelo tú.", true);
-                                Console.ReadKey();
-                                Environment.Exit(0);
-                            }
-                        }
-                    }
-                    else
+                    if (!response.ToString().Equals("s", StringComparison.CurrentCultureIgnoreCase))
                     {
                         Logger.Info("Presiona cualquier tecla para salir.");
                         Console.ReadKey();
                         Environment.Exit(0);
                     }
+
+                    Console.WriteLine("\n");
+                    Logger.Info("Abriendo archivos...");
+                    string[] files = Directory.GetFiles(downloadsDir, "*.exe");
+
+                    foreach (string file in files)
+                    {
+                        try
+                        {
+                            await Task.Run(() => Process.Start(file));
+                        }
+                        catch (Win32Exception error) when (error.NativeErrorCode == 1223)
+                        {
+                            Console.WriteLine("\n");
+                            Logger.Error("Uno de los archivos requiere permisos de administrador.\nVuelve a abrir el programa como administrador para que pueda abrirlo, o ábrelo tú.", true);
+                            Console.ReadKey();
+                            Environment.Exit(0);
+                        }
+                    }
+
+                    Logger.Info("Presiona cualquier tecla para salir.");
+                    Console.ReadKey();
+                    Environment.Exit(0);
                 }
                 catch (Exception error)
                 {
@@ -132,7 +104,7 @@ namespace Custom_Installer
                 Logger.Info("Presiona cualquier tecla para volver a intentarlo.", true);
                 Console.ReadKey();
                 Console.Clear();
-                await Run(configFile, downloadsDir);
+                await Run(configFile, downloadsDir, json, configFileText);
             }
         }
     }
