@@ -102,7 +102,7 @@ namespace Custom_Installer
 
         public static async Task CheckUpdates()
         {
-            Console.Title = $"Instalador personalizable v{GetLocalVersion()} | The Ghost";
+            Console.Title = $"Custom Installer v{GetLocalVersion()} | The Ghost";
 
             HttpClient httpClient = new();
             var latestVersion = await httpClient.GetStringAsync("https://otko.pp.ua/CI/version.txt");
@@ -148,7 +148,7 @@ namespace Custom_Installer
             using (var response = await client.GetAsync(fileLink, HttpCompletionOption.ResponseHeadersRead))
             {
                 string? originalName = response.Content.Headers.ContentDisposition?.FileName;
-                var fileStream = File.Create(Path.Combine(downloadsDir, originalName ?? fileName + ".exe"));
+                using var fileStream = File.Create(Path.Combine(downloadsDir, originalName ?? fileName + ".exe"));
                 await response.Content.CopyToAsync(fileStream);
             }
 
