@@ -111,7 +111,7 @@ namespace Custom_Installer
             if (latestVersion != GetLocalVersion())
             {
                 Logger.Info($"Hay una actualización disponible ({GetLocalVersion()} -> {latestVersion}), instalando...");
-                InstallUpdate();
+                await InstallUpdate();
             }
             else
             {
@@ -121,7 +121,7 @@ namespace Custom_Installer
             }
         }
 
-        public static async void InstallUpdate()
+        public static async Task InstallUpdate()
         {
             string currentDir = Directory.GetCurrentDirectory() + "\\";
             string temp = Path.GetTempPath();
