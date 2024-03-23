@@ -1,7 +1,6 @@
 ﻿using Newtonsoft.Json.Linq;
 using Newtonsoft.Json;
 using System.Diagnostics;
-using System.ComponentModel;
 
 namespace Custom_Installer
 {
@@ -69,27 +68,8 @@ namespace Custom_Installer
                     }
 
                     Console.WriteLine("\n");
-                    Logger.Info("Abriendo archivos...");
-                    string[] files = Directory.GetFiles(downloadsDir, "*.exe");
 
-                    foreach (string file in files)
-                    {
-                        try
-                        {
-                            await Task.Run(() => Process.Start(file));
-                        }
-                        catch (Win32Exception error) when (error.NativeErrorCode == 1223)
-                        {
-                            Console.WriteLine("\n");
-                            Logger.Error("Uno de los archivos requiere permisos de administrador.\nVuelve a abrir el programa como administrador para que pueda abrirlo, o ábrelo tú.", true);
-                            Console.ReadKey();
-                            Environment.Exit(0);
-                        }
-                    }
-
-                    Logger.Info("Presiona cualquier tecla para salir.");
-                    Console.ReadKey();
-                    Environment.Exit(0);
+                    OpenFiles(downloadsDir);
                 }
                 catch (Exception error)
                 {
@@ -106,6 +86,41 @@ namespace Custom_Installer
                 Console.Clear();
                 await Run(configFile, downloadsDir, json, configFileText);
             }
+        }
+
+        public static void OpenFiles(string downloadsDir)
+        {
+            Logger.Info("Abriendo archivos...");
+            string[] files = Directory.GetFiles(downloadsDir, "*.exe");
+
+            try
+            {
+                Parallel.ForEach(files, file =>
+                {
+                    Process.Start(file);
+                });
+            }
+            catch
+            {
+                Console.WriteLine("\n");
+                Logger.Error("Uno de los archivos requiere permisos de administrador.\nVuelve a abrir el programa como administrador para que lo pueda abrir.", true);
+                Logger.Info("Pidiendo permisos de administrador...", true);
+
+                ProcessStartInfo startInfo = new()
+                {
+                    UseShellExecute = true,
+                    Verb = "runas",
+                    FileName = Path.Combine(Directory.GetCurrentDirectory(), AppDomain.CurrentDomain.FriendlyName + ".exe"),
+                    Arguments = "--openfiles",
+                };
+
+                Process.Start(startInfo);
+                Environment.Exit(0);
+            }
+
+            Logger.Info("Presiona cualquier tecla para salir.");
+            Console.ReadKey();
+            Environment.Exit(0);
         }
     }
 }
