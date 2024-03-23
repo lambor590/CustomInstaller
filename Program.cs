@@ -4,8 +4,14 @@ namespace Custom_Installer
 {
     class Program
     {
-        static async Task Main()
+        static async Task Main(string[] args)
         {
+            if (args.Length > 0 && args[0] == "--openfiles")
+            {
+                DownloadMode.OpenFiles(Path.Combine(Directory.GetCurrentDirectory(), "Descargas"));
+                return;
+            }
+
             try
             {
                 await Utils.CheckUpdates();
